@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert'; 
 import 'package:shared_preferences/shared_preferences.dart'; 
-import 'package:nfc_manager/nfc_manager.dart';
-import 'package:nfc_manager_ndef/nfc_manager_ndef.dart';
+// import 'package:nfc_manager/nfc_manager.dart';
+// import 'package:nfc_manager_ndef/nfc_manager_ndef.dart';
 
 void main() {
   runApp(const NFCScannerApp());
@@ -537,141 +537,18 @@ class _ScanningFlowScreenState extends State<ScanningFlowScreen> {
 
   @override
   void dispose() {
-    NfcManager.instance.stopSession();
+    // NfcManager.instance.stopSession();
     super.dispose();
   }
 
   void _startRealNfcScan() async {
-    // FIX 4: Updated availability check
-    NfcAvailability availability = await NfcManager.instance.checkAvailability();
-    
-    if (availability != NfcAvailability.enabled) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('NFC is not available. Please use Simulate Scan.')),
-      );
-      return;
-    }
-
-    NfcManager.instance.startSession(
-      // FIX 1: Explicitly defining polling options
-      pollingOptions: {NfcPollingOption.iso14443, NfcPollingOption.iso15693}, 
-      onDiscovered: (NfcTag tag) async {
-        setState(() => _step = 3);
-        
-        try {
-          var ndef = Ndef.from(tag); 
-          if (ndef == null || ndef.cachedMessage == null) {
-            throw Exception('Tag is empty or not NDEF formatted.');
-          }
-          
-          String fullJson = '';
-          for (var record in ndef.cachedMessage!.records) {
-            List<int> payloadBytes = record.payload;
-            if (payloadBytes.isEmpty) continue;
-
-            // Properly check if it's a Text record (TNF=1, Type='T')
-            bool isTextRecord = record.typeNameFormat.index == 1 &&
-                                record.type.length == 1 &&
-                                record.type.first == 0x54; // 0x54 is 'T'
-
-            if (isTextRecord) {
-              int languageCodeLength = payloadBytes[0] & 0x3F; 
-              int textOffset = 1 + languageCodeLength;
-              if (textOffset < payloadBytes.length) {
-                fullJson += utf8.decode(payloadBytes.sublist(textOffset), allowMalformed: true);
-              }
-            } else {
-              // For MIME records (like application/json), there is no language code prefix
-              fullJson += utf8.decode(payloadBytes, allowMalformed: true);
-            }
-          }
-
-          // Sanitize the string: obliterate any hidden control chars, line breaks, or null terminators
-          String cleanJson = fullJson.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '');
-          
-          Map<String, dynamic> tagData;
-          try {
-            tagData = jsonDecode(cleanJson);
-          } catch (e) {
-            throw Exception('Invalid receipt data on tag. Please try scanning a valid receipt tag.');
-          }
-
-          _scannedPlace = tagData['shop_name'] ?? tagData['place'] ?? 'Unknown Location';
-          _scannedAmount = (tagData['final_total'] as num?)?.toDouble() ?? (tagData['amount'] as num?)?.toDouble() ?? 0.0;
-          _scannedGstRate = (tagData['gst_rate'] as num?)?.toDouble();
-          _scannedGstAmount = (tagData['gst_amount'] as num?)?.toDouble();
-          _scannedSubtotal = (tagData['subtotal'] as num?)?.toDouble();
-          if (_scannedAmount < 0) {
-            throw Exception('Receipt amount cannot be negative.');
-          }
-          
-          String datePart = tagData['date'] ?? DateFormat('MMM dd, yyyy').format(DateTime.now());
-          String timePart = tagData['time'] ?? DateFormat('hh:mm a').format(DateTime.now());
-          _scannedDate = tagData.containsKey('time') ? '$datePart • $timePart' : datePart;
-          
-          if (tagData['products'] != null) {
-            _scannedItems = (tagData['products'] as List).map((p) {
-              double total = (p['total'] as num).toDouble();
-              if (total < 0) throw Exception('Item total cannot be negative.');
-              return {
-                'name': p['name'],
-                'qty': p['quantity'],
-                'total': total,
-              };
-            }).toList();
-          } else if (tagData['items'] != null) {
-            _scannedItems = List<Map<String, dynamic>>.from(tagData['items']);
-          } else {
-            _scannedItems = [];
-          }
-
-          setState(() => _step = 4);
-          
-          NfcManager.instance.stopSession();
-
-          if (!mounted) return;
-          
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ConfirmCategorizeScreen(
-                place: _scannedPlace,
-                amount: _scannedAmount,
-                date: _scannedDate,
-                items: _scannedItems, 
-                gstRate: _scannedGstRate,
-                gstAmount: _scannedGstAmount,
-                subtotal: _scannedSubtotal,
-              ),
-            ),
-          );
-
-          if (mounted) {
-            Navigator.pop(context, result);
-          }
-        } catch (e) {
-          NfcManager.instance.stopSession(); 
-          if (!mounted) return;
-          
-          String errorMessage = e.toString();
-          if (errorMessage.startsWith('Exception: ')) {
-            errorMessage = errorMessage.substring(11);
-          }
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage)),
-          );
-          Navigator.pop(context);
-        }
-      },
-    );
+    // Physical NFC disabled for iOS Simulator / UI testing
   }
 
   void _simulateScan() async {
-    try {
-      await NfcManager.instance.stopSession();
-    } catch (_) {}
+    // try {
+    //   await NfcManager.instance.stopSession();
+    // } catch (_) {}
 
     setState(() => _step = 4);
     if (!mounted) return;
