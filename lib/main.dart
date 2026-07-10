@@ -548,9 +548,8 @@ class _ScanningFlowScreenState extends State<ScanningFlowScreen> {
     if (availability != NfcAvailability.enabled) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('NFC is not available on this device.')),
+        const SnackBar(content: Text('NFC is not available. Please use Simulate Scan.')),
       );
-      Navigator.pop(context);
       return;
     }
 
@@ -669,6 +668,46 @@ class _ScanningFlowScreenState extends State<ScanningFlowScreen> {
     );
   }
 
+  void _simulateScan() async {
+    try {
+      await NfcManager.instance.stopSession();
+    } catch (_) {}
+
+    setState(() => _step = 4);
+    if (!mounted) return;
+    
+    // Simulate parsing the same data
+    _scannedPlace = "Simulated Shop";
+    _scannedAmount = 10.68;
+    _scannedDate = "10/07/2026";
+    _scannedItems = [
+      {"name": "Milk", "price": 3.5, "quantity": 2, "total": 7.0},
+      {"name": "Bread", "price": 2.8, "quantity": 1, "total": 2.8}
+    ];
+    _scannedSubtotal = 9.8;
+    _scannedGstRate = 9.0;
+    _scannedGstAmount = 0.88;
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ConfirmCategorizeScreen(
+          place: _scannedPlace,
+          amount: _scannedAmount,
+          date: _scannedDate,
+          items: _scannedItems, 
+          gstRate: _scannedGstRate,
+          gstAmount: _scannedGstAmount,
+          subtotal: _scannedSubtotal,
+        ),
+      ),
+    );
+
+    if (mounted) {
+      Navigator.pop(context, result);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -688,6 +727,11 @@ class _ScanningFlowScreenState extends State<ScanningFlowScreen> {
                 const Icon(Icons.contactless, size: 100, color: Colors.grey),
                 const SizedBox(height: 24),
                 const Text('Approach NFC Tag', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: _simulateScan,
+                  child: const Text('Simulate Scan'),
+                ),
               ] else if (_step == 3) ...[
                 const Icon(Icons.waves, size: 100, color: Colors.blue),
                 const SizedBox(height: 24),
